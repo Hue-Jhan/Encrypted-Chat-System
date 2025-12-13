@@ -191,7 +191,7 @@ public class ConnManager implements Runnable {
     private void handleJoinGroup(Message msg) {
         if (msg.to == null) { send(new Message("group_error","server",nickname,"no group name",System.currentTimeMillis(),null)); return; }
         var set = groups.get(msg.to);
-        if (set == null) { send(new Message("group_error","server",nickname,msg.to+"group does not exist.",System.currentTimeMillis(),null)); return; }
+        if (set == null) { send(new Message("group_error","server",nickname,msg.to+" group does not exist.",System.currentTimeMillis(),null)); return; }
         set.add(nickname);
         send(new Message("group_joined", nickname, msg.to, "joined group"+msg.to, System.currentTimeMillis(), null));
         for (String member : set) {
