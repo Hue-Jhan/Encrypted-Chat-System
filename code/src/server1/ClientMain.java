@@ -2,19 +2,18 @@ package server1;
 
 import com.google.gson.Gson;
 
-import java.awt.*;
 import java.io.*;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import javax.net.ssl.*;
 
 import static server1.Message.fmtHM;
 import static server1.Message.fmtUser;
@@ -40,14 +39,38 @@ public class ClientMain {
     private final Set<String> openGroupSessions = ConcurrentHashMap.newKeySet();
     BlockingQueue<Message> groupEvents = new LinkedBlockingQueue<>();
 
-
-    public ClientMain(String host, int port) throws IOException {
+    // Simple sockets
+    /* public ClientMain(String host, int port) throws IOException {
         this.socket = new Socket(host, port);
         this.in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
         this.out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
         waitForServerReady();
+    }*/
+
+    // TLS sockets
+    public ClientMain(String host, int port) throws IOException {
+        try {
+            SSLSocket ssl = createSSLSocket(host, port);
+            this.socket = ssl;
+            this.in = new BufferedReader(new InputStreamReader(ssl.getInputStream(), StandardCharsets.UTF_8));
+            this.out = new PrintWriter(new OutputStreamWriter(ssl.getOutputStream(), StandardCharsets.UTF_8), true);
+            waitForServerReady();
+        } catch (Exception e) { throw new IOException("TLS connection failed", e); }
     }
-    public ClientMain() throws IOException {}
+    private SSLSocket createSSLSocket(String host, int port) throws Exception {
+        SSLContext ctx = SSLContext.getInstance("TLS");
+        ctx.init(null, new TrustManager[]{new X509TrustManager() {
+            public void checkClientTrusted(java.security.cert.X509Certificate[] c, String a) {}
+            public void checkServerTrusted(java.security.cert.X509Certificate[] c, String a) {}
+            public java.security.cert.X509Certificate[] getAcceptedIssuers() { return null; }
+        }}, new SecureRandom());
+        SSLSocketFactory factory = ctx.getSocketFactory();
+        SSLSocket socket = (SSLSocket) factory.createSocket(host, port);
+        socket.startHandshake();
+        return socket;
+    }
+
+
 
     public String checkNickname() throws IOException {
         while (true) {
@@ -104,11 +127,6 @@ public class ClientMain {
         resetState();
         connected = true;
         running = true;
-
-        /*socket = new Socket("localhost", 9999);
-        in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-        out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true); */
-        // waitForServerReady();
         this.setNick(checkNickname());
         Thread reader = new Thread(() -> {
             try {
@@ -242,11 +260,11 @@ public class ClientMain {
                         if (code == 1) continueP = false;
 
                     } else { logerr("   Invalid command\n"); }
-                }
+            }
+            log("Exiting...");
         } catch (Exception e) { System.err.println("Error in client loop: " + e.getMessage());
         } finally {
             running = false;
-            // try { reader.join(); } catch (InterruptedException ignored) {}
             try { if (socket != null) socket.close(); } catch (IOException ignored) {}
         }
     }
@@ -451,16 +469,11 @@ public class ClientMain {
         } catch (Exception e) { logerr("   Error while listing: " + e.getMessage()); }
     }
 
+
     public static void main(String[] args) throws Exception {
         String host = args.length > 0 ? args[0] : "localhost";
         int port = args.length > 1 ? Integer.parseInt(args[1]) : 9999;
-        while (true) {
-            try {
-                ClientMain client = new ClientMain(host, port);
-                client.start();
-            } catch (Exception e) { System.err.println("Connection failed: " + e.getMessage()); }
-            System.out.println("Reconnecting in 3 seconds...");
-            Thread.sleep(3500);
-        }
+        ClientMain client = new ClientMain(host, port);
+        client.start();
     }
 }

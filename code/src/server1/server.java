@@ -2,11 +2,15 @@ package server1;
 
 import com.google.gson.Gson;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.KeyStore;
 import java.util.concurrent.*;
 import java.util.Set;
+import javax.net.ssl.*;
 import server1.Message.Colors;
 
 public class server implements Runnable{
@@ -23,15 +27,41 @@ public class server implements Runnable{
     public static void main(String[] args) { new server(9999); }
     public static int getNumofClients() { return clients.size(); }
 
-    public void run(int port) {
+    // simple sockets
+    /*public void run(int port) {
         try (ServerSocket server = new ServerSocket(port)) {
-            log(" + " + Colors.GREEN + "Server attivo " + Colors.RESET + "su " + port);
+            log(" + " + Colors.GREEN + "Server running " + Colors.RESET + "on port " + port);
             while (true) {
                 Socket clientSocket = server.accept();
                 ConnManager cm = new ConnManager(clientSocket, clients, groups, pendingChats, activeChats, gson);
                 new Thread(cm).start();
             }
         } catch (IOException e) { logr("Errore nel server: " + e.getMessage()); }
+    }*/
+
+    // tls sockets
+    public void run(int port) {
+        try (SSLServerSocket server = createSSLServerSocket(port)) {
+            log(" + Server " + Colors.GREEN + "TLS running " + Colors.RESET + "on port " + port);
+            while (true) {
+                SSLSocket clientSocket = (SSLSocket) server.accept();
+                clientSocket.startHandshake();
+                ConnManager cm = new ConnManager( clientSocket, clients, groups, pendingChats, activeChats, gson );
+                new Thread(cm).start(); }
+        } catch (Exception e) { logr("Errore TLS server: " + e.getMessage()); }
+    }
+    private SSLServerSocket createSSLServerSocket(int port) throws Exception {
+        char[] pass = "123456".toCharArray();
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+        try (InputStream is = new FileInputStream("server.p12")) {
+            ks.load(is, pass);
+        }
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        kmf.init(ks, pass);
+        SSLContext ctx = SSLContext.getInstance("TLS");
+        ctx.init(kmf.getKeyManagers(), null, null);
+        SSLServerSocketFactory factory = ctx.getServerSocketFactory();
+        return (SSLServerSocket) factory.createServerSocket(port);
     }
 
     public static void log (String s) { System.out.println(s); }
