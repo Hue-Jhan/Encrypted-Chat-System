@@ -37,7 +37,9 @@ Once running the app the user must register with a unique username, once the ser
 - Showing the menu again;
 - Shortcut example (short aliases are supported, like /l, /g, /c). <img src="media/chat2-3-boh.png" align="right" width=350>
 
-On the right are a couple of images that show some flow examples: in the first image a user creates the group "Swag" with the command ```/g c Swag``` and another user joins (with ```/g j Swag```). 
+On the right are images that show some flow examples:
+
+In the first image a user creates the group "Swag" with the command ```/g c Swag``` and another user joins (with ```/g j Swag```). 
 
 In the second picture another user lists all the active groups/users and joins a group, in the list appears an empty group, it's a bug i already fixed.
 
@@ -49,7 +51,7 @@ A user can temporarily quit the chat with ```/q```, and join in it again with ``
 
 Direct user messaging requires a chat request, in the example on the right a user sends a chat request to Hue, when Hue accepts the first user is notified and he will be able to start chatting with ```/chat Hue```. The chat is not automatically opened because someone can send many requests to other users, so the chat must be explicitly opened by the user, allowing him quit the current with ```/q``` and join others whenever he wants.
 
-If a user in a chat or group leaves with ```/q```, any message sent there will be queued, and when the user comes back to the chat all the previous messages will be printed, but the names of the users will not be colored : (
+If a user in a chat or group leaves with ```/q```, any message sent there will be queued, and when the user comes back to the chat all the previous messages are printed, but the users' nicknames won't be colored : (
 
 # 💻 Code
 This app is a simple chat system managed by a central server which uses a central ServerSocket/SSLServerSocket, for each client connection a ConnManager instance is created, which runs in its own thread and maintains shared state using thread-safe structures (Connected clients, Active chats, Group memberships, Pending chat requests). All communication uses JSON messages serialized with Gson.
