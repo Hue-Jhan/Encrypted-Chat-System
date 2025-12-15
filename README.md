@@ -1,6 +1,6 @@
 # Terminal Chat System
 
-<img src="media/chat1.png" align="right" width=450>
+<img src="media/chat1.png" align="right" width=430>
 
 Simple terminal-based chat application in Java. It uses a central server and supports private chats, public group chats, and TLS-encrypted communication over TCP sockets.
 The system is designed to work across multiple devices on the same network.
@@ -10,16 +10,16 @@ The system is designed to work across multiple devices on the same network.
 
 - Install JDK 24, intellij, clone the repo in a new project and add gson-2.3.1.jar to dependencies;
 
-- Compile Server and ClientMain, and run them with  ```java -jar server.jar``` and ```java -jar client.jar```.
+- Compile Server, ClientMain, and run them with  ```java -jar server.jar```/```client.jar```.
 
 ### 🔒 TLS Encryption
 If you want to use the TLS encrypted sockets:
 
-- Before compiling comment out the plain ServerSocket logic in the server and the plain Socket constructor in ClientMain, then uncomment the TLS-based SSLServerSocket logic and the SSLSocket logic;
+- Before compiling comment out the plain ServerSocket logic in the server and the plain Socket constructor in ClientMain, then uncomment the 2 SSLSocket logic parts;
 
 - On intellij terminal run: ```keytool -genkeypair -alias chatserver -keyalg RSA -keysize 2048 -storetype PKCS12 -keystore server.p12 -validity 3650```;
 
-- Insert ```localhost``` as CN, then insert the file name and the password in the server function ```createSSLServerSocket```;
+- Insert ```localhost``` as CN, then insert the file name and password in the server function ```createSSLServerSocket```;
 
 - Compile and insert the .p12 file in the same directory as the server jar.
 
@@ -43,9 +43,9 @@ In the second picture another user lists all the active groups/users and joins a
 
 All the messages show their timestamp and the colored user's nickname, every user is assigned a color based on the ordinal number of users connected to the server (if i remember correctly the first user gets blue, the second yellow, etc.)
 
-A user can temporarily quit the chat with ```/q```, and join in it again with ```/group join Group1``` or ```/g j Group1```. While the user is not actively in the group he will still be notified when someone sends a message with a ``` + x unread msg(s) from y``` notification, the same thing applies for single chats. <img src="media/chat4.png" align="right" width=430>
+A user can temporarily quit the chat with ```/q```, and join in it again with ```/group join Group1``` or ```/g j Group1```. While the user is not actively in the group he will still be notified when someone sends a message with a ``` + x unread msg(s) from y``` notification, the same thing applies for single chats. To leave a group use ```/leave G1``` or ```/l G1```, if a group is empty it gets deleted. 
 
-To leave a group use ```/leave G1``` or ```/l G1```, if a group is empty it gets deleted. 
+<img src="media/chat4.png" align="right" width=430>
 
 Direct user messaging requires a chat request, in the example on the right a user sends a chat request to Hue, when Hue accepts the first user is notified and he will be able to start chatting with ```/chat Hue```. The chat is not automatically opened because someone can send many requests to other users, so the chat must be explicitly opened by the user, allowing him quit the current with ```/q``` and join others whenever he wants.
 
