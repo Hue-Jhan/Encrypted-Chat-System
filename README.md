@@ -35,7 +35,9 @@ Once running the app the user must register with a unique username, once the ser
 - Creating a new public group chat or Joining a public group chat;
 - Quitting a chat, group, or the program entirely;
 - Showing the menu again;
-- Shortcut example (short aliases are supported, like /l, /g, /c). <img src="media/chat2-3-boh.png" align="right" width=350>
+- Shortcut example (short aliases are supported, like /l, /g, /c).
+
+<img src="media/chat2-3-boh.png" align="right" width=350>
 
 On the right are images that show some flow examples:
 
@@ -60,3 +62,4 @@ The server implements a simple validation logic which makes sure that usernames 
 
 Each client uses a dedicated reader thread for incoming messages and a main thread handles basic user input/commands. Communication is fully asynchronous, and internal queues separate: Chat messages, Group messages and System events.
 
+...
