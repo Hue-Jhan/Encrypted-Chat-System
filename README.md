@@ -63,12 +63,11 @@ This app is a simple chat system managed by a central server which uses a centra
 - Group messages;
 - Pending chat requests;
 - Active chats;
+- Active groups;
 - Lock (used a couple of times to avoid some race conditions);
 - Copy of socket, in, out, gson (all communication uses JSON messages serialized with Gson jar).
 
-The server first implements a simple validation logic which makes sure that usernames are unique, then it starts the loop for the message communication. In this loop commands are handled with a simple function that based on the message's type validates it before execution, for example groups must exist when asked to be joined, and chat requests require an explicit acceptance.
-
-Also any disconnection triggers cleanup, which closes active chats, updates group membership, and removes clients from server state.
+The server first implements a simple validation logic which makes sure that usernames are unique, then it starts the loop for the message communication. In this loop commands are handled with a simple function that based on the message's type validates it before execution, for example groups must exist when asked to be joined, and chat requests require an explicit acceptance. Also any disconnection triggers cleanup, which closes active chats, updates group membership, and removes clients from server state.
 
 Each client uses a dedicated reader thread for incoming messages and a main thread for handling basic user input/commands. Communication is fully asynchronous also thanks to internal structures and queues:
 
@@ -77,11 +76,10 @@ Each client uses a dedicated reader thread for incoming messages and a main thre
 - Pending chat requests;
 - Active chats;
 - Active and opened chats;
-- Active/opened groups;
+- Active groups;
+- Active and opened groups;
 - Group msgs queue;
 - General group msg queue (for logging errors);
-
-Groups do not req
 
 The general server messages queue is mostly used for the list command because at first i didn't want to use the reader thread, in the end i kept it this way. 
 
