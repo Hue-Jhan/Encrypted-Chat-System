@@ -19,6 +19,7 @@ public class server implements Runnable{
     private static final ConcurrentMap<String, CopyOnWriteArraySet<String>> groups = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, CopyOnWriteArraySet<String>> pendingChats = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, CopyOnWriteArraySet<String>> activeChats = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, CopyOnWriteArraySet<String>> activeGroups = new ConcurrentHashMap<>();
     private static final Gson gson = new Gson();
 
     @Override
@@ -46,7 +47,7 @@ public class server implements Runnable{
             while (true) {
                 SSLSocket clientSocket = (SSLSocket) server.accept();
                 clientSocket.startHandshake();
-                ConnManager cm = new ConnManager( clientSocket, clients, groups, pendingChats, activeChats, gson );
+                ConnManager cm = new ConnManager(clientSocket, clients, groups, pendingChats, activeChats, activeGroups, gson );
                 new Thread(cm).start(); }
         } catch (Exception e) { logr("Errore TLS server: " + e.getMessage()); }
     }

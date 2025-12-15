@@ -35,6 +35,7 @@ public class ClientMain {
     private final Map<String, BlockingQueue<String>> chatQueues = new ConcurrentHashMap<>(); // msgs
     private final Set<String> openSessions = ConcurrentHashMap.newKeySet(); // created and active chats
 
+    private final Set<String> activeGroups = ConcurrentHashMap.newKeySet();
     private final Map<String, BlockingQueue<Message>> groupQueues = new ConcurrentHashMap<>();
     private final Set<String> openGroupSessions = ConcurrentHashMap.newKeySet();
     BlockingQueue<Message> groupEvents = new LinkedBlockingQueue<>();
@@ -108,6 +109,7 @@ public class ClientMain {
         pendingChatRequests.clear();
         activeChats.clear();
         chatQueues.clear();
+        activeGroups.clear();
         groupQueues.clear();
         groupEvents.clear();
         queue.clear();
@@ -172,10 +174,12 @@ public class ClientMain {
                                 // logl("+ " + Message.Colors.GREEN + "[GROUP] " + Message.Colors.RESET + "Successfully joined " + msg.to + " \n > ");
                                 groupEvents.offer(msg);
                                 groupQueues.computeIfAbsent(msg.to, k -> new LinkedBlockingQueue<>());
+                                activeGroups.add(msg.to);
                             }
                             case "group_notify" -> logl(Message.Colors.GREEN + "[i] " + Message.Colors.RESET + msg.content + ". \n > ");
                             case "group_msg" -> {
                                 String group = msg.to;
+                                // if (!activeGroups.contains(group)) continue;
                                 if (username.equals(msg.from)) continue;
                                 boolean sessionOpen = openGroupSessions.contains(group);
                                 String ts = msg.timestamp == null ? "?" : fmtHM(msg.timestamp);
@@ -189,7 +193,7 @@ public class ClientMain {
                             }
                             case "list" -> {} // nothing bc its already handled
                             case "group_error" -> groupEvents.offer(msg);
-                            // default -> { log("log: " + msg.to +  ", " +  msg.from + ", " + msg.content); }
+                            default -> { log("log: " + msg.to +  ", " +  msg.from + ", " + msg.content); }
                         }
                     }
                 connected = false;
@@ -288,7 +292,7 @@ public class ClientMain {
                 // logerr("   Group " + group + " does not exist or join timed out. \n");
                 return 0; }
             openGroupSessions.add(group);
-            try {code = startGroupSession(group, sca);
+            try { code = startGroupSession(group, sca);
             } finally { openGroupSessions.remove(group);}
         }
         return code;
@@ -337,13 +341,14 @@ public class ClientMain {
             if (line.isEmpty()) continue;
             if (line.equalsIgnoreCase("/q")) {
                 log(" - Temporarily Exiting group " + group + " (still joined)\n");
+                activeGroups.remove(group);
                 inGroup = false;
             } else if (line.equalsIgnoreCase("/leave") || line.equalsIgnoreCase("/exit")) {
                 Message leave = new Message("leave_group", username, group, System.currentTimeMillis(), null);
                 out.println(gson.toJson(leave));
-                log("[-] Left group " + group + "\n");
-                // activeGroups.remove(group);
+                activeGroups.remove(group);
                 groupQueues.remove(group);
+                log("[-] Left group " + group + "\n");
                 if (line.equalsIgnoreCase("/exit")) code = 1;
                 inGroup = false;
             } else {

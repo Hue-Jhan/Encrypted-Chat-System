@@ -19,25 +19,19 @@ public class ConnManager implements Runnable {
     private final PrintWriter out;
     private final ConcurrentMap<String, ConnManager> clients;
     private final ConcurrentMap<String, CopyOnWriteArraySet<String>> groups;
-    private final Map<String, List<Message>> groupHistory = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, CopyOnWriteArraySet<String>> pendingChats;
     private final ConcurrentMap<String, CopyOnWriteArraySet<String>> activeChats;
+    private final ConcurrentMap<String, CopyOnWriteArraySet<String>> activeGroups;
     private final Gson gson;
     private String nickname = "";
     private final String color = getColor();
     private final Object outLock = new Object();
 
-    public ConnManager(Socket socket, ConcurrentMap<String, ConnManager> clients, ConcurrentMap<String, CopyOnWriteArraySet<String>> groups,ConcurrentMap<String, CopyOnWriteArraySet<String>> pendingChats, ConcurrentMap<String, CopyOnWriteArraySet<String>> activeChats, Gson gson) throws IOException {
+    public ConnManager(Socket socket, ConcurrentMap<String, ConnManager> clients, ConcurrentMap<String, CopyOnWriteArraySet<String>> groups,ConcurrentMap<String, CopyOnWriteArraySet<String>> pendingChats, ConcurrentMap<String, CopyOnWriteArraySet<String>> activeChats, ConcurrentMap<String, CopyOnWriteArraySet<String>> activeGroups, Gson gson) throws IOException {
         this.socket = socket;
         this.in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
         this.out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
-        this.clients = clients; this.groups = groups; this.pendingChats = pendingChats; this.activeChats = activeChats; this.gson = gson;
-    }
-    public ConnManager(Socket socket, ConcurrentMap<String, ConnManager> clients, ConcurrentMap<String, CopyOnWriteArraySet<String>> groups, Gson gson) throws IOException {
-        this.socket = socket;
-        this.in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-        this.out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
-        this.clients = clients; this.groups = groups; this.gson = gson; this.pendingChats = null; this.activeChats = null;
+        this.clients = clients; this.groups = groups; this.pendingChats = pendingChats; this.activeChats = activeChats; this.activeGroups = activeGroups; this.gson = gson;
     }
 
     private void send(Message m) {
@@ -45,13 +39,6 @@ public class ConnManager implements Runnable {
         String json = gson.toJson(m);
         synchronized(outLock) { out.println(json); out.flush(); }
     }
-    private void sendl(Message m) {
-        String json = gson.toJson(m);
-        synchronized(outLock) { out.print(json); out.flush(); }
-       /* try {  out.print(gson.toJson(m));
-        } catch (Exception e) { server.logr("send error to " + nickname + ": " + e.getMessage()); }*/
-    }
-    private void sendSimple(String text) { out.println(text); }
 
     @Override
     public void run() {
@@ -94,7 +81,9 @@ public class ConnManager implements Runnable {
 
     private void cleanup() {
         if (!nickname.isBlank()) clients.remove(nickname);
-        groups.forEach((g, s) -> s.remove(nickname));
+        activeGroups.remove(nickname);
+        groups.forEach((g, s) -> {
+            if (s.isEmpty()) groups.remove(g); });
         try { socket.close(); } catch (IOException ignored) {}
         log(" - Client " + color + nickname + Colors.RESET + " disconnected.");
     }
@@ -179,30 +168,25 @@ public class ConnManager implements Runnable {
     }
 
     private void handleCreateGroup(Message msg) {
-        /*if (msg.to == null) { send(new Message("error","server",nickname,"no group name",System.currentTimeMillis(),null)); return; }
+        if (msg.to == null) { send(new Message("group_error","server",nickname, "no group name", System.currentTimeMillis(), null)); return; }
         groups.computeIfAbsent(msg.to, k -> new CopyOnWriteArraySet<>()).add(nickname);
-        send(new Message("create_group","server",nickname,"group created/joined: "+msg.to,System.currentTimeMillis(),null)); */
-        if (msg.to == null) {
-            send(new Message("group_error","server",nickname, "no group name", System.currentTimeMillis(), null)); return; }
-
-        groups.computeIfAbsent(msg.to, k -> new CopyOnWriteArraySet<>()).add(nickname);
+        activeGroups.computeIfAbsent(nickname, k -> new CopyOnWriteArraySet<>()).add(msg.to);
         send(new Message("group_joined", nickname, msg.to, msg.to+" group created and joined.", System.currentTimeMillis(), null));
     }
     private void handleJoinGroup(Message msg) {
         if (msg.to == null) { send(new Message("group_error","server",nickname,"no group name",System.currentTimeMillis(),null)); return; }
         var set = groups.get(msg.to);
         if (set == null) { send(new Message("group_error","server",nickname,msg.to+" group does not exist.",System.currentTimeMillis(),null)); return; }
-        set.add(nickname);
+        boolean firstJoin = set.add(nickname);
+        activeGroups.computeIfAbsent(nickname, k -> new CopyOnWriteArraySet<>()).add(msg.to);
+
         send(new Message("group_joined", nickname, msg.to, "joined group"+msg.to, System.currentTimeMillis(), null));
+        if (!firstJoin) return;
         for (String member : set) {
             if (member.equals(nickname)) continue;
+
             ConnManager dest = clients.get(member);
             if (dest != null) { dest.send(new Message("group_notify", nickname, msg.to, msg.from + " joined " + msg.to, System.currentTimeMillis(), null)); }
-        }
-        List<Message> history = groupHistory.getOrDefault(msg.to, Collections.emptyList());
-        ConnManager dest = clients.get(nickname);
-        if (dest != null) {
-            for (Message m : history) dest.send(m);
         }
     }
     private void handleLeaveGroup(Message msg) {
@@ -210,6 +194,9 @@ public class ConnManager implements Runnable {
         var set = groups.get(msg.to);
         if (set == null || !set.remove(nickname)) { send(new Message("group_error","server",nickname, "not in group " + msg.to, System.currentTimeMillis(), null)); return; }
         if (set.isEmpty()) { groups.remove(msg.to); }
+        var active = activeGroups.get(nickname);
+        if (active != null) active.remove(msg.to);
+
         send(new Message("group_left", nickname, msg.to, "left group " + msg.to, System.currentTimeMillis(), null));
         for (String member : set) {
             if (member.equals(nickname)) continue;
@@ -218,17 +205,17 @@ public class ConnManager implements Runnable {
         }
     }
     private void handleGroupMsg(Message msg) {
-        if (msg.to == null) {
-            send(new Message("group_error","server",nickname, "no group name", System.currentTimeMillis(), null));return; }
+        if (msg.to == null) { send(new Message("group_error","server",nickname, "no group name", System.currentTimeMillis(), null));return; }
         Set<String> members = groups.get(msg.to);
         if (members == null || !members.contains(nickname)) {
             send(new Message("group_error","server",nickname, "not a member of group " + msg.to, System.currentTimeMillis(), null)); return; }
 
-        groupHistory.computeIfAbsent(msg.to, k -> new ArrayList<>()).add(msg);
         for (String member : members) {
             if (member.equals(nickname)) continue;
             ConnManager dest = clients.get(member);
-            if (dest != null) {dest.send(msg); }
+            if (dest != null) { dest.send(msg); }
         }
     }
+
+
 }
