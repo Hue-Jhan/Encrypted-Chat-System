@@ -1,4 +1,4 @@
-# Terminal Chat System
+# Encrypted Chat System
 
 <img src="media/chat1.png" align="right" width=430>
 
@@ -56,10 +56,32 @@ Direct user messaging requires a chat request, in the example on the right a use
 If a user in a chat or group leaves with ```/q```, any message sent there will be queued, and when the user comes back to the chat all the previous messages are printed, but the users' nicknames won't be colored : (
 
 # 💻 Code
-This app is a simple chat system managed by a central server which uses a central ServerSocket/SSLServerSocket, for each client connection a ConnManager instance is created, which runs in its own thread and maintains shared state using thread-safe structures (Connected clients, Active chats, Group memberships, Pending chat requests). All communication uses JSON messages serialized with Gson.
+This app is a simple chat system managed by a central server which uses a central ServerSocket/SSLServerSocket, for each client connection a ConnManager instance is created, which runs in its own thread and maintains shared state using some thread-safe structures: 
 
-The server implements a simple validation logic which makes sure that usernames are unique, commands are validated before execution, groups exist when asked to be joined, and chat requests get an explicit acceptance. Also any disconnection triggers cleanup, which closes active chats, updates group membership, and removes clients from server state.
+- Connected clients;
+- Groups + members;
+- Group messages;
+- Pending chat requests;
+- Active chats;
+- Lock (used a couple of times to avoid some race conditions);
+- Copy of socket, in, out, gson (all communication uses JSON messages serialized with Gson jar).
 
-Each client uses a dedicated reader thread for incoming messages and a main thread handles basic user input/commands. Communication is fully asynchronous, and internal queues separate: Chat messages, Group messages and System events.
+The server first implements a simple validation logic which makes sure that usernames are unique, then it starts the loop for the message communication. In this loop commands are handled with a simple function that based on the message's type validates it before execution, for example groups must exist when asked to be joined, and chat requests require an explicit acceptance.
 
-...
+Also any disconnection triggers cleanup, which closes active chats, updates group membership, and removes clients from server state.
+
+Each client uses a dedicated reader thread for incoming messages and a main thread for handling basic user input/commands. Communication is fully asynchronous also thanks to internal structures and queues:
+
+- General server messages queue;
+- Chat msgs queue;
+- Pending chat requests;
+- Active chats;
+- Active and opened chats;
+- Active/opened groups;
+- Group msgs queue;
+- General group msg queue (for logging errors);
+
+Groups do not req
+
+The general server messages queue is mostly used for the list command because at first i didn't want to use the reader thread, in the end i kept it this way. 
+
