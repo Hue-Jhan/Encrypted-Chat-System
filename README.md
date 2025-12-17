@@ -8,7 +8,7 @@ The system is designed to work across multiple devices on the same network.
 
 ### ⚙ How to run:
 
-- Install JDK 24, intellij, clone the repo in a new project and add gson-2.3.1.jar to dependencies;
+- Install JDK 24, clone the repo in a new intellij project and add gson-2.3.1.jar to dependencies;
 
 - Compile Server, ClientMain, and run them with  ```java -jar server.jar```/```client.jar```.
 
